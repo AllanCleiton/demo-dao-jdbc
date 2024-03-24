@@ -1,16 +1,17 @@
 package model.dao.impl;
 
 import java.sql.Connection;
-import java.sql.Date;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 import db.DB;
+import db.DbException;
 import db.DbIntegretyException;
 import model.dao.SellerDao;
 import model.entities.Department;
@@ -28,23 +29,33 @@ public class SellerDaoJDBC implements SellerDao{
 		PreparedStatement ps = null;
 		
 		try {
-			conn = DB.getConnection();
-			ps = conn.prepareStatement("INSERT INTO seller (Name, Email, BirthDate, BaseSalary, DepartmentId) VALUES (?, ?, ?, ?, ?)");
+			ps = conn.prepareStatement("INSERT INTO seller (Name, Email, BirthDate, BaseSalary, DepartmentId) VALUES (?, ?, ?, ?, ?)", Statement.RETURN_GENERATED_KEYS);
+			
 			ps.setString(1, obj.getName());
 			ps.setString(2, obj.getEmail());
-			ps.setDate(3, (Date) obj.getBirthDate());
+			ps.setDate(3, new java.sql.Date(obj.getBirthDate().getTime()));
 			ps.setDouble(4, obj.getBaseSalary());
 			ps.setInt(5, obj.getDepartment().getId());
 			
 			int rowsAffected = ps.executeUpdate();
-			System.out.println("Rows affected = " + rowsAffected);
+			
+			if(rowsAffected > 0) {
+				ResultSet rs = ps.getGeneratedKeys();
+				if(rs.next()) {
+					int id = rs.getInt(1);
+					obj.setId(id);
+				}
+				DB.closeResultSet(rs);
+			}else {
+				throw new DbException("Unexpected error! No rows affected!");
+			}
+			
 			
 		}
  		catch(SQLException e) {
-			throw new DbIntegretyException(e.getMessage());
+			throw new DbException(e.getMessage());
 		}
 		finally {
-			DB.closeConnection();
 			DB.closeStatement(ps);
 		}
 		
@@ -69,7 +80,6 @@ public class SellerDaoJDBC implements SellerDao{
 		ResultSet rs = null;
 		
 		try {
-			conn = DB.getConnection();
 			ps = conn.prepareStatement(
 					"SELECT seller.*, department.Name as DepName "
 					+ "FROM seller INNER JOIN department "
@@ -105,7 +115,6 @@ public class SellerDaoJDBC implements SellerDao{
 		ResultSet rs = null;
 		
 		try {
-			conn = DB.getConnection();
 			ps = conn.prepareStatement(
 					"SELECT seller.*, department.Name as DepName "
 					+ "FROM seller INNER JOIN department "
@@ -165,7 +174,6 @@ public class SellerDaoJDBC implements SellerDao{
 		ResultSet rs = null;
 		
 		try {
-			conn = DB.getConnection();
 			ps = conn.prepareStatement(
 					"SELECT seller.*, department.Name as DepName "
 					+ "FROM seller INNER JOIN department "
